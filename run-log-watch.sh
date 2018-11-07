@@ -1,21 +1,25 @@
 #!/usr/bin/env bash
 # must install inotifywait tools first
 
-FILE='/home/pi/Documents/scripts/host-watch/hosts'
+LOGFILE="/var/log/mikrotik-crs-w52.log"
 
 # Patterns
-ERROR='kings foine'
+ERROR='Nov  7'
 
 # temp variables
+mkdir /home/pi/Documents/out
 
-mkdir /home/pi/Documents/ran
-
-inotifywait -q -m -e close_write $FILE |
+inotifywait -q -m -e close_write $LOGFILE |
 while read -r filename event; do
+	
+	mkdir /home/pi/Documents/enter
+
 	# get number of lines in file
-	NBRLINES=`wc -l $FILE | awk '{ print $1 }'`
+	NBRLINES=`wc -l $LOGFILE | awk '{ print $1 }'`
+
 	# get string at specific line
-	STRING=`sed $NBRLINES'!d' $FILE`
+	STRING=`sed $NBRLINES'!d' $LOGFILE`
+
 	# Search at that line for given patterns
 	if echo "$STRING" | grep -w "$ERROR"; then
 		echo "matched";
