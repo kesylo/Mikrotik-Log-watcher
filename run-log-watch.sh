@@ -1,34 +1,54 @@
 #!/usr/bin/env bash
-# must install inotifywait tools first
+#	Must install inotifywait tools first
 
+#	Global variables
+DEVICE='CSR-W52-Bxl'
 LOGFILE="/var/log/mikrotik-crs-w52.log"
 
-# Patterns
-ERROR='Nov  7'
+#	Patterns
+DHCPLEASE='offering lease|without success'
+FAMOCOPROD="fam-prod: disconnected"
+GKT='group key timeout'
+EXTENSIVE='extensive data loss'
 
-# temp variables
-mkdir /home/pi/Documents/out
+#	Functions
+function notify_admin() {
+secret_key="3H5MYW9_mDaB7Cw83TG8V"
+value1=$1
+value2=$2
+value3=$3
+json="{\"value1\":\"${value1}\",\"value2\":\"${value2}\",\"value3\":\"${value3}\"}"
+curl -X POST -H "Content-Type: application/json" -d "${json}" https://maker.ifttt.com/trigger/log-watch/with/key/${secret_key}
+}
 
-inotifywait -q -m -e close_write $LOGFILE |
-while read -r filename event; do
-	
-	mkdir /home/pi/Documents/enter
+#	echo "$PRODCOUNT" >> /home/pi/Documents/scripts/host-watch/hosts
 
-	# get number of lines in file
-	NBRLINES=`wc -l $LOGFILE | awk '{ print $1 }'`
-
-	# get string at specific line
-	STRING=`sed $NBRLINES'!d' $LOGFILE`
-
-	# Search at that line for given patterns
-	if echo "$STRING" | grep -w "$ERROR"; then
-		echo "matched";
-		mkdir /home/pi/Documents/match
-		echo "$ERROR" >> temp1
-	# attendre 4h avant de ressend cet event si ca se repette
-	else
-		echo "no match";
-		mkdir /home/pi/Documents/notmatch
-		echo "$ERROR" >> temp
+while inotifywait -e modify $LOGFILE; do
+#	Dhcp offering lease without success
+	if tail -n1 $LOGFILE | grep -E "$DHCPLEASE"; then
+		MESSAGE=`tail -n1 $LOGFILE`
+		MESSAGEtemp=${MESSAGE// /_}
+		DHCPLEASEtemp=${DHCPLEASE// /_}
+		notify_admin $DHCPLEASEtemp $DEVICE $MESSAGEtemp
+	fi
+#	Extensive data loss
+	if tail -n1 $LOGFILE | grep "$EXTENSIVE"; then
+		MESSAGE=`tail -n1 $LOGFILE`
+		MESSAGEtemp=${MESSAGE// /_}
+		EXTENSIVEtemp=${EXTENSIVE// /_}
+		notify_admin $EXTENSIVEtemp $DEVICE $MESSAGEtemp
+	fi
+#	Famoco Prod disconnected
+	if tail -n1 $LOGFILE | grep "$FAMOCOPROD"; then
+		MESSAGE=`tail -n1 $LOGFILE`
+		MESSAGEtemp=${MESSAGE// /_}
+		FAMOCOPRODtemp=${FAMOCOPROD// /_}
+	fi
+#	Group key timeout
+	if tail -n1 $LOGFILE | grep "$GKT"; then
+		MESSAGE=`tail -n1 $LOGFILE`
+		MESSAGEtemp=${MESSAGE// /_}
+		GKTtemp=${GKT// /_}
+		notify_admin $GKTtemp $DEVICE $MESSAGEtemp
 	fi
 done
